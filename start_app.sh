@@ -65,7 +65,10 @@ fi
 # Load environment variables
 if [ -f .env ]; then
     echo "Loading environment variables from .env..."
-    export $(grep -v '^#' .env | xargs)
+    # Export variables, ignoring comments and empty lines
+    set -a
+    source <(grep -v '^#' .env | sed 's/#.*$//' | grep -v '^[[:space:]]*$')
+    set +a
 fi
 
 # Display configuration
