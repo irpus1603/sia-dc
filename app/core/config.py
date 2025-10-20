@@ -13,6 +13,9 @@ class Settings(BaseModel):
     SIA_KEYS: list[str] = Field(
         default=[x.strip() for x in os.getenv("SIA_KEYS", "").split(",")]
     )  # optional; 16/24/32 chars
+    SIA_ALLOWED_TIMEBAND: int = Field(
+        default=int(os.getenv("SIA_ALLOWED_TIMEBAND", "86400"))
+    )  # seconds, ±timeband for timestamp validation (default: 24 hours)
 
     # Forwarding target (Frappe)
     FORWARD_URL: str = Field(default=os.getenv("FORWARD_URL", "http://localhost:9000/ingest"))

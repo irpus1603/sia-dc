@@ -7,6 +7,7 @@ import asyncio
 import socket
 import sys
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 
 def calculate_crc(data: str) -> str:
@@ -31,11 +32,13 @@ def calculate_crc(data: str) -> str:
 class SIASimulator:
     """Simulates a SIA-DC alarm device sending events."""
 
-    def __init__(self, host: str = "127.0.0.1", port: int = 65100, account: str = "AAA"):
+    def __init__(self, host: str = "127.0.0.1", port: int = 65100, account: str = "AAA",
+                 timezone: str = "Asia/Jakarta"):
         self.host = host
         self.port = port
         self.account = account
         self.sequence = 0
+        self.timezone = ZoneInfo(timezone)
 
     def build_sia_message(self, code: str, zone: str = "001", partition: str = "1",
                          receiver: str = "1", extra_data: str = "") -> str:
@@ -54,8 +57,8 @@ class SIASimulator:
         self.sequence += 1
         seq = f"{self.sequence:04d}"
 
-        # Build timestamp (_HH:MM:SS,MM-DD-YYYY format, but often omitted in modern systems)
-        timestamp = datetime.now().strftime("_%H:%M:%S,%m-%d-%Y")
+        # Build timestamp (_HH:MM:SS,MM-DD-YYYY format) using the device timezone
+        timestamp = datetime.now(self.timezone).strftime("_%H:%M:%S,%m-%d-%Y")
 
         # Build message content
         # Simplified SIA content: [#<account>|N<code><zone info>]
@@ -198,12 +201,13 @@ async def main():
     parser.add_argument("--host", default="127.0.0.1", help="Target host (default: 127.0.0.1)")
     parser.add_argument("--port", type=int, default=65100, help="Target port (default: 65100)")
     parser.add_argument("--account", default="AAA", help="Account ID (default: AAA)")
+    parser.add_argument("--timezone", default="Asia/Jakarta", help="Device timezone (default: Asia/Jakarta)")
     parser.add_argument("--mode", choices=["test", "interactive"], default="test",
                        help="Mode: 'test' runs all scenarios, 'interactive' for manual testing")
 
     args = parser.parse_args()
 
-    sim = SIASimulator(host=args.host, port=args.port, account=args.account)
+    sim = SIASimulator(host=args.host, port=args.port, account=args.account, timezone=args.timezone)
 
     if args.mode == "test":
         await sim.test_scenarios()
