@@ -100,8 +100,9 @@ echo ""
 
 # Run uvicorn with options
 # Adjust host, port, and workers as needed
+# Convert LOG_LEVEL to lowercase for uvicorn
+UVICORN_LOG_LEVEL=$(echo "${LOG_LEVEL:-info}" | tr '[:upper:]' '[:lower:]')
 exec uvicorn app.main:app \
     --host 0.0.0.0 \
     --port 8000 \
-    --log-level "${LOG_LEVEL:-info}" \
-    --no-access-log
+    --log-level "$UVICORN_LOG_LEVEL"
