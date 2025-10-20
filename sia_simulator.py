@@ -10,17 +10,22 @@ from datetime import datetime
 
 
 def calculate_crc(data: str) -> str:
-    """Calculate CRC-16-CCITT checksum for SIA message."""
-    crc = 0xFFFF
-    for char in data:
-        crc ^= ord(char) << 8
-        for _ in range(8):
-            if crc & 0x8000:
-                crc = (crc << 1) ^ 0x1021
-            else:
-                crc = crc << 1
-            crc &= 0xFFFF
-    return f"{crc:04X}"
+    """
+    Calculate CRC-16 Modbus checksum for SIA message.
+
+    This matches pysiaalarm's CRC calculation algorithm exactly.
+    Uses 0xA001 polynomial (Modbus variant).
+    """
+    crc = 0
+    for letter in str.encode(data):
+        temp = letter
+        for _ in range(0, 8):
+            temp ^= crc & 1
+            crc >>= 1
+            if (temp & 1) != 0:
+                crc ^= 0xA001
+            temp >>= 1
+    return ("%x" % crc).upper().zfill(4)
 
 
 class SIASimulator:
@@ -59,21 +64,18 @@ class SIASimulator:
         message_content = f"N{code}{zone_text}{extra_data}"
         message_block = f'[#{self.account}|{message_content}]{timestamp}'
 
-        # Build the body (everything after length): "SIA-DCS"<seq>R<receiver>L<line>#<account>[...]
+        # Build the body (everything after CRC+length): "SIA-DCS"<seq>R<receiver>L<line>#<account>[...]
         body = f'"SIA-DCS"{seq}R{receiver}L{partition}#{self.account}{message_block}'
 
-        # Calculate length in hex (length of everything after the length field itself)
-        content_for_length = body
-        length_hex = f"{len(content_for_length):04X}"
+        # Calculate length in hex (length of the body)
+        length_hex = f"{len(body):04X}"
 
-        # Build message without CRC
-        message_without_crc = f"{length_hex}{body}"
+        # Calculate CRC on the body only (not including CRC or length fields)
+        # This matches pysiaalarm which uses incoming[8:] as full_message for CRC
+        crc = calculate_crc(body)
 
-        # Calculate CRC
-        crc = calculate_crc(message_without_crc)
-
-        # Full SIA-DCS message
-        full_message = f"{crc}{message_without_crc}"
+        # Full SIA-DCS message: <CRC><LENGTH><BODY>
+        full_message = f"{crc}{length_hex}{body}"
 
         return full_message
 
